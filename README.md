@@ -70,5 +70,4 @@ Then open `classifier.ipynb` with `jupyter notebook` and run all cells. The trai
 ## Acknowledgements
 
 - Dataset: [CT Scans for COVID-19 Classification](https://www.kaggle.com/datasets/azaemon/preprocessed-ct-scans-for-covid19) (CC BY 4.0), built from the iCTCF data of Ning et al. (2020).
-- Approach inspired by [chrispathway/covid-ct-classifier](https://github.com/chrispathway/covid-ct-classifier).
 - Model: Howard et al., "Searching for MobileNetV3", ICCV 2019. Pretrained weights from torchvision.
