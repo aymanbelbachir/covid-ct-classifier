@@ -1,6 +1,6 @@
 # COVID-19 CT Scan Classifier
 
-A PyTorch image classifier that sorts chest CT slices into three classes: normal, COVID-19 positive and non-informative. It uses transfer learning on MobileNetV3-Large and reaches **99.63% accuracy** on a held-out test set of 2,956 slices.
+A PyTorch image classifier that sorts chest CT slices into three classes: normal, COVID-19 positive and non-informative. It uses transfer learning on MobileNetV3-Large and reaches **99.59% accuracy** on a held-out test set of 2,956 slices.
 
 > This is a learning project. It is not a medical device and must not be used to make decisions about anyone's health.
 
@@ -18,18 +18,18 @@ Each image is a single slice from a chest CT scan. The model assigns it to one o
 
 | Split | Images | Accuracy |
 |---|---:|---:|
-| Validation | 2,951 | 99.46% |
-| **Test** | **2,956** | **99.63%** |
+| Validation | 2,951 | 99.53% |
+| **Test** | **2,956** | **99.59%** |
 
 Confusion matrix on the test set (rows = true class, columns = predicted class):
 
 | | NiCT | nCT | pCT |
 |---|---:|---:|---:|
-| **NiCT** | 856 | 1 | 0 |
-| **nCT** | 7 | 1,490 | 1 |
-| **pCT** | 2 | 0 | 599 |
+| **NiCT** | 854 | 3 | 0 |
+| **nCT** | 2 | 1,495 | 1 |
+| **pCT** | 5 | 1 | 595 |
 
-No COVID-positive slice was classified as normal. Most errors are normal slices predicted as non-informative, usually slices at the edge of the lungs where the boundary between the two classes is ambiguous.
+Ten of the 12 errors involve the non-informative class: slices at the edge of the lungs, where it is ambiguous whether enough lung is visible to judge. One COVID-positive slice was classified as normal, which is the most serious type of error for this task.
 
 ![Training curves](assets/training_curves.png)
 
@@ -38,7 +38,7 @@ No COVID-positive slice was classified as normal. Most errors are normal slices 
 - **Data:** the slices are split per class into 70% training, 15% validation and 15% test, with a fixed seed (42). Training images are augmented with random resized crops and horizontal flips. All images are normalized with the ImageNet statistics.
 - **Model:** MobileNetV3-Large pretrained on ImageNet. Its original 1,000-class head is replaced by a new one: 960 → 1,280 (ReLU, 20% dropout) → 3. The whole network is fine-tuned (4.2M trainable parameters).
 - **Training:** cross-entropy loss, AdamW (learning rate 1e-4, weight decay 1e-4), batch size 16, 25 epochs. The model with the best validation accuracy is kept.
-- **Hardware:** Apple Silicon MacBook, PyTorch MPS backend. Training took about 57 minutes.
+- **Hardware:** Apple Silicon MacBook, PyTorch MPS backend. Training took about 64 minutes.
 
 ## Getting started
 
