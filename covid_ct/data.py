@@ -1,10 +1,11 @@
-"""Image transforms, the train/validation/test split and the data loaders."""
-import random
+"""Image transforms and data loaders."""
+from pathlib import Path
 
 from torch.utils.data import DataLoader, Subset
 from torchvision import datasets, transforms
 
 from . import config
+from .splits import get_split
 
 train_transform = transforms.Compose([
     transforms.Resize(256),
@@ -22,34 +23,17 @@ eval_transform = transforms.Compose([
 ])
 
 
-def split_indices(targets, n_classes, seed=config.SEED):
-    """Split the images of each class into 70% train, 15% validation and 15% test.
-
-    Same procedure and seed as the notebook, so the split is identical.
-    """
-    rng = random.Random(seed)
-    by_class = {i: [] for i in range(n_classes)}
-    for idx, label in enumerate(targets):
-        by_class[label].append(idx)
-
-    splits = {"train": [], "val": [], "test": []}
-    for idxs in by_class.values():
-        rng.shuffle(idxs)
-        n_train = int(0.70 * len(idxs))
-        n_val = int(0.15 * len(idxs))
-        splits["train"] += idxs[:n_train]
-        splits["val"] += idxs[n_train:n_train + n_val]
-        splits["test"] += idxs[n_train + n_val:]
-    return splits
-
-
-def get_dataloaders(split_names=("train", "val", "test")):
-    """Return a dict {split name: DataLoader} for the requested splits."""
+def get_dataloaders(split_names=("train", "val", "test"), mode=config.DEFAULT_SPLIT_MODE):
+    """Return a dict {split name: DataLoader} for the requested splits and split mode."""
     base = datasets.ImageFolder(config.DATA_ROOT)
     if base.classes != config.CLASSES:
         raise ValueError(f"Expected the folders {config.CLASSES} in {config.DATA_ROOT}, found {base.classes}")
 
-    indices = split_indices(base.targets, len(base.classes))
+    paths, _, indices = get_split(mode)
+    folder_paths = [Path(p).relative_to(config.DATA_ROOT).as_posix() for p, _ in base.samples]
+    if folder_paths != paths:
+        raise RuntimeError("The image list does not match ImageFolder's order")
+
     loaders = {}
     for name in split_names:
         transform = train_transform if name == "train" else eval_transform

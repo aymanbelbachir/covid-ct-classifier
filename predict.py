@@ -17,11 +17,19 @@ from covid_ct.model import load_model
 def main():
     parser = argparse.ArgumentParser(description="Classify CT slices as NiCT, nCT or pCT.")
     parser.add_argument("images", nargs="+", help="path(s) to the image file(s)")
-    parser.add_argument("--weights", default=str(config.MODEL_PATH), help="path to the trained model")
+    parser.add_argument("--weights", default=None,
+                        help="path to the trained model (default: the group-split model if it exists)")
     args = parser.parse_args()
 
+    weights = args.weights
+    if weights is None:
+        weights = next((config.model_path(m) for m in config.SPLIT_MODES if config.model_path(m).exists()), None)
+        if weights is None:
+            raise SystemExit("No trained model found in outputs/: run `python train.py` first")
+    print(f"Model: {config.short(weights)}\n")
+
     device = config.get_device()
-    model = load_model(args.weights, device)
+    model = load_model(weights, device)
 
     for path in args.images:
         image = Image.open(path).convert("RGB")
