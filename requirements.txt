@@ -8,3 +8,5 @@ kaggle
 jupyter
 gradio
 huggingface_hub
+onnx
+onnxruntime

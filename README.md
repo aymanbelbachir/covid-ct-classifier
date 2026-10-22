@@ -2,10 +2,16 @@
 
 A deep learning project that classifies chest CT slices into three classes: normal, COVID-19 positive and non-informative. It fine-tunes a pretrained MobileNetV3-Large in PyTorch and reaches **96.9% accuracy on 29 CT scans held out from training**, with a **99.5% specificity** for COVID-19 and all 8 COVID-positive test scans detected.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/demo-dark.jpg">
+  <img src="assets/demo-light.jpg" alt="The browser demo: a CT slice with its Grad-CAM heatmap, classified as COVID-19 positive with 98% confidence">
+</picture>
+
 - **Transfer learning:** MobileNetV3-Large pretrained on ImageNet, fine-tuned on 19,685 CT slices
 - **Scan-level data split:** near-identical slices of the same scan are kept together, so the test set measures performance on unseen scans
 - **Complete evaluation:** precision, recall, F1, sensitivity, specificity, confidence intervals and scan-level results
 - **Explainability:** Grad-CAM heatmaps show which regions of the image drive each prediction
+- **Runs in the browser:** an interactive demo executes the model and its Grad-CAM on the visitor's device with ONNX Runtime Web, hosted for free as a static Hugging Face Space
 - **Command-line tools:** training, evaluation, prediction and Grad-CAM scripts, plus a step-by-step notebook
 - **Apple Silicon:** trains on the Mac GPU through PyTorch's MPS backend
 
@@ -57,6 +63,28 @@ Validation accuracy reaches about 96% within the first epochs. The model from th
 
 ![Grad-CAM heatmaps on test slices](assets/gradcam.png)
 
+## Browser demo
+
+The demo is a static web page. The model is downloaded once (16.8 MB, plus 14 MB for the ONNX Runtime engine), then every slice is classified on the visitor's device in under 100 ms. No image is uploaded anywhere.
+
+<p align="center">
+  <img src="assets/demo-loading.gif" width="800" alt="Loading screen: two lungs fill up as the model downloads, then the app appears">
+</p>
+
+While the files download, two lungs fill up with the progress. Then drop a slice, paste it or pick an example: the page shows the probability of each class and a Grad-CAM heatmap, which can be switched to the evidence for any of the three classes.
+
+<p align="center">
+  <img src="assets/demo-examples.png" alt="Grad-CAM heatmaps of the predicted class on the three example slices of the demo">
+</p>
+
+The predicted class and its heatmap on the three examples of the demo: COVID-19 positive (98%), normal (99%) and non-informative (100%, a slice of the neck).
+
+<p align="center">
+  <img src="assets/demo-phones.png" alt="The demo on a phone: loading screen, light theme and a prediction in dark mode">
+</p>
+
+The page adapts to phones and follows the light or dark appearance of the system.
+
 ## How it works
 
 1. **Data split.** Neighbouring slices of a CT scan are almost identical, so splitting the dataset slice by slice would put near-copies of training slices in the test set. `find_groups.py` links slices whose pixel correlation is above 0.95 and turns each chain of linked slices into a group, a proxy for one scan. The 189 groups are split into training (137), validation (23) and test (29), stratified by class, and `check_leakage.py` confirms that no test slice has a near-copy in the training set.
@@ -64,6 +92,7 @@ Validation accuracy reaches about 96% within the first epochs. The model from th
 3. **Model.** MobileNetV3-Large pretrained on ImageNet. Its 1,000-class head is replaced by a new one: 960 → 1,280 (ReLU, 20% dropout) → 3. The whole network is fine-tuned (4.2M trainable parameters).
 4. **Training.** Cross-entropy loss, AdamW (learning rate 1e-4, weight decay 1e-4), batch size 16, 25 epochs, about 85 minutes on an Apple Silicon MacBook.
 5. **Evaluation.** Per-class precision, recall and F1, COVID-19 sensitivity and specificity with 95% confidence intervals, and a summary per scan.
+6. **Browser demo.** `export_onnx.py` exports the model to ONNX together with its Grad-CAM. For this architecture the gradients have a closed form, so the heatmaps of the three classes come out of the same forward pass as the prediction, with no backpropagation in the browser. The page in `web/` runs the 16.8 MB model with ONNX Runtime Web (WebAssembly) in under 100 ms per slice, and the image never leaves the visitor's device.
 
 ## Project structure
 
@@ -83,9 +112,14 @@ train.py               trains the model and saves it with its history and curves
 evaluate.py            evaluates the trained model on the test set
 gradcam.py             draws Grad-CAM heatmaps for test images or your own images
 predict.py             classifies one or more images
-app.py                 web demo (Gradio): upload a slice, get the prediction and its heatmap
-deploy_space.py        publishes the web demo on Hugging Face Spaces
-examples/              example slices from the test set, used by the demo
+app.py                 local web demo (Gradio): upload a slice, get the prediction and its heatmap
+export_onnx.py         exports the model and its Grad-CAM to ONNX for the browser demo
+web/                   browser demo, runs the model on the visitor's device
+├── index.html         page structure
+├── style.css          Liquid Glass styles, light and dark themes
+└── app.js             loading screen, inference with ONNX Runtime Web, heatmap rendering
+deploy_space.py        previews the browser demo or publishes it as a static Hugging Face Space
+examples/              example slices from the test set, used by the demos
 classifier.ipynb       the whole pipeline step by step, with explanations
 ```
 
@@ -115,7 +149,16 @@ python train.py                           # train the model (about 1.5 hours on 
 python evaluate.py                        # evaluate it on the test scans
 python gradcam.py --examples 2            # Grad-CAM heatmaps, saved to assets/gradcam.png
 python predict.py data/pCT/pCT1227.jpg    # classify one or more images
-python app.py                             # web demo at http://127.0.0.1:7860
+python app.py                             # local web demo at http://127.0.0.1:7860
+```
+
+To run the browser demo on your computer, or publish it on Hugging Face Spaces:
+
+```bash
+python export_onnx.py                     # export the model to outputs/model.onnx
+python deploy_space.py --preview          # try the browser demo at http://127.0.0.1:8000
+hf auth login                             # once, connects this computer to Hugging Face
+python deploy_space.py                    # publish it as a static Space
 ```
 
 The split is included in `splits/group_split.csv`, so `find_groups.py` only needs to be run to change the grouping threshold.
@@ -133,3 +176,7 @@ The split is included in `splits/group_split.csv`, so `find_groups.py` only need
 - Dataset: [CT Scans for COVID-19 Classification](https://www.kaggle.com/datasets/azaemon/preprocessed-ct-scans-for-covid19) (CC BY 4.0), built from the iCTCF data of Ning et al. (2020).
 - Model: Howard et al., "Searching for MobileNetV3", ICCV 2019. Pretrained weights from torchvision.
 - Grad-CAM: Selvaraju et al., "Grad-CAM: Visual Explanations from Deep Networks via Gradient-based Localization", ICCV 2017.
+
+## Author
+
+Designed and built by [Ayman Belbachir](https://github.com/aymanbelbachir).

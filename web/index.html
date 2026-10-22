@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>COVID-19 CT Classifier</title>
+  <meta name="description" content="Classify a chest CT slice in your browser and see where the model looks with Grad-CAM. The image never leaves your device.">
+  <meta name="author" content="Ayman Belbachir">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#F2F2F7" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 200'%3E%3Cg fill='%230A84FF'%3E%3Cpath d='M103 2h14v52l24 18-8 9-23-17-23 17-8-9 24-18z'/%3E%3Cpath d='M92 76C84 60 62 54 48 68 30 86 20 120 22 152c2 26 22 40 44 36 18-3 28-14 29-30 1-16 1-56-3-82z'/%3E%3Cpath d='M128 76c8-16 30-22 44-8 18 18 28 52 26 84-2 26-22 40-44 36-18-3-28-14-29-30-1-16-1-56 3-82z'/%3E%3C/g%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="is-loading">
+  <div class="backdrop" aria-hidden="true"><div class="gantry"></div></div>
+
+  <!-- Loading screen: the lungs fill up as the model and the engine download -->
+  <div class="loader" id="loader" role="status" aria-live="polite">
+    <div class="backdrop" aria-hidden="true"><div class="gantry"></div></div>
+    <svg class="lungs" id="lungs" viewBox="-6 -6 232 212" aria-hidden="true">
+      <defs>
+        <clipPath id="lung-shape">
+          <path d="M103 2h14v52l24 18-8 9-23-17-23 17-8-9 24-18z"/>
+          <path d="M92 76C84 60 62 54 48 68 30 86 20 120 22 152c2 26 22 40 44 36 18-3 28-14 29-30 1-16 1-56-3-82z"/>
+          <path d="M128 76c8-16 30-22 44-8 18 18 28 52 26 84-2 26-22 40-44 36-18-3-28-14-29-30-1-16-1-56 3-82z"/>
+        </clipPath>
+        <linearGradient id="liquid-gradient" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" class="liquid-top"/>
+          <stop offset="1" class="liquid-bottom"/>
+        </linearGradient>
+        <!-- Hide the outline of each part where it overlaps the other, so the airway flows into the lungs -->
+        <mask id="outside-lobes" maskUnits="userSpaceOnUse" x="-10" y="-10" width="240" height="220">
+          <rect x="-10" y="-10" width="240" height="220" fill="#fff"/>
+          <path fill="#000" d="M92 76C84 60 62 54 48 68 30 86 20 120 22 152c2 26 22 40 44 36 18-3 28-14 29-30 1-16 1-56-3-82z"/>
+          <path fill="#000" d="M128 76c8-16 30-22 44-8 18 18 28 52 26 84-2 26-22 40-44 36-18-3-28-14-29-30-1-16-1-56 3-82z"/>
+        </mask>
+        <mask id="outside-airway" maskUnits="userSpaceOnUse" x="-10" y="-10" width="240" height="220">
+          <rect x="-10" y="-10" width="240" height="220" fill="#fff"/>
+          <path fill="#000" d="M103 2h14v52l24 18-8 9-23-17-23 17-8-9 24-18z"/>
+        </mask>
+        <linearGradient id="rim-gradient" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#fff" stop-opacity=".95"/>
+          <stop offset=".45" stop-color="#fff" stop-opacity=".15"/>
+          <stop offset="1" stop-color="#fff" stop-opacity=".55"/>
+        </linearGradient>
+      </defs>
+      <g clip-path="url(#lung-shape)">
+        <rect class="vessel" x="0" y="0" width="220" height="200"/>
+        <g id="liquid-level" transform="translate(0 200)">
+          <path class="wave wave-back" fill="url(#liquid-gradient)" d="M0 0q27.5-7 55 0t55 0 55 0 55 0 55 0 55 0 55 0 55 0V230H0z"/>
+          <path class="wave wave-front" fill="url(#liquid-gradient)" d="M0 2q27.5 6 55 0t55 0 55 0 55 0 55 0 55 0 55 0 55 0V230H0z"/>
+        </g>
+      </g>
+      <g class="rims" fill="none" stroke="url(#rim-gradient)" stroke-width="1.4">
+        <path mask="url(#outside-lobes)" d="M103 2h14v52l24 18-8 9-23-17-23 17-8-9 24-18z"/>
+        <g mask="url(#outside-airway)">
+          <path d="M92 76C84 60 62 54 48 68 30 86 20 120 22 152c2 26 22 40 44 36 18-3 28-14 29-30 1-16 1-56-3-82z"/>
+          <path d="M128 76c8-16 30-22 44-8 18 18 28 52 26 84-2 26-22 40-44 36-18-3-28-14-29-30-1-16-1-56 3-82z"/>
+        </g>
+      </g>
+      <g class="gloss" fill="none" stroke="#fff" stroke-linecap="round">
+        <path d="M37 104c4-14 10-23 19-29" stroke-width="3.5"/>
+        <path d="M137 92c3-8 8-14 15-17" stroke-width="3"/>
+        <path d="M107 8v30" stroke-width="2.5"/>
+      </g>
+    </svg>
+    <p class="loader-percent"><span id="loader-percent">0</span>%</p>
+    <p class="loader-title" id="loader-title">Loading the model</p>
+    <p class="loader-detail" id="loader-detail">Connecting</p>
+    <button class="pill pill-tinted" id="retry" type="button" hidden>Try again</button>
+    <p class="loader-note">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 7V5.25a3.5 3.5 0 1 1 7 0V7h.25c.69 0 1.25.56 1.25 1.25v5.5c0 .69-.56 1.25-1.25 1.25h-7.5C3.56 15 3 14.44 3 13.75v-5.5C3 7.56 3.56 7 4.25 7h.25zm1.5 0h4V5.25a2 2 0 1 0-4 0V7z"/></svg>
+      Your images stay on this device
+    </p>
+  </div>
+
+  <div class="scroll-edge" aria-hidden="true"></div>
+  <header class="nav glass" inert>
+    <a class="brand" href="#top" aria-label="COVID-19 CT Classifier">
+      <svg viewBox="0 0 220 200" aria-hidden="true"><g><path d="M103 2h14v52l24 18-8 9-23-17-23 17-8-9 24-18z"/><path d="M92 76C84 60 62 54 48 68 30 86 20 120 22 152c2 26 22 40 44 36 18-3 28-14 29-30 1-16 1-56-3-82z"/><path d="M128 76c8-16 30-22 44-8 18 18 28 52 26 84-2 26-22 40-44 36-18-3-28-14-29-30-1-16-1-56 3-82z"/></g></svg>
+      <span>CT Classifier</span>
+    </a>
+    <div class="nav-actions">
+      <span class="status" id="status"><span class="status-dot"></span><span class="status-text">On-device</span></span>
+      <a class="pill pill-glass" href="https://github.com/aymanbelbachir/covid-ct-classifier" target="_blank" rel="noopener">Source code</a>
+    </div>
+  </header>
+
+  <main class="app" id="top" inert>
+    <section class="hero">
+      <h1>COVID-19 CT Classifier</h1>
+      <p class="lede">Drop a chest CT slice to see how a neural network reads it. The model runs in your browser, so the image never leaves your device.</p>
+    </section>
+
+    <section class="workspace glass" aria-label="Classifier">
+      <div class="stage-column">
+        <div class="stage" id="stage">
+          <canvas id="canvas" width="672" height="672" role="img" aria-label="CT slice with the Grad-CAM heatmap"></canvas>
+          <div class="scanline" aria-hidden="true"></div>
+
+          <div class="dropzone" id="dropzone">
+            <svg class="dropzone-icon" viewBox="0 0 48 48" aria-hidden="true">
+              <ellipse cx="24" cy="25" rx="20" ry="15"/>
+              <path d="M21.5 15.5c-2.5-1.5-6-1-8.5 2-3 3.6-4 8.8-2.8 13 .8 2.7 3.4 4 6 3.4 3-.7 4.8-3 5-6 .2-3.6.4-8.2.3-12.4z"/>
+              <path d="M26.5 15.5c2.5-1.5 6-1 8.5 2 3 3.6 4 8.8 2.8 13-.8 2.7-3.4 4-6 3.4-3-.7-4.8-3-5-6-.2-3.6-.4-8.2-.3-12.4z"/>
+            </svg>
+            <h2>Drop a CT slice here</h2>
+            <button class="pill pill-tinted" id="choose" type="button">Choose image</button>
+            <p class="dropzone-hint" id="dropzone-hint">One axial chest slice, JPG or PNG</p>
+          </div>
+
+          <button class="round-button glass glass-dark" id="clear" type="button" aria-label="Remove the image" hidden>
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+          </button>
+
+          <div class="viewer-controls glass glass-dark" id="viewer-controls" hidden>
+            <button class="switch" id="heatmap-switch" type="button" role="switch" aria-checked="true">
+              <span class="switch-track"><span class="switch-thumb"></span></span>
+              <span>Heatmap</span>
+            </button>
+            <input class="slider" id="opacity" type="range" min="0.2" max="1" step="0.05" value="0.7" aria-label="Heatmap opacity">
+          </div>
+        </div>
+
+        <div class="examples">
+          <p class="examples-label">Or try a slice from the test set</p>
+          <div class="example-list" id="examples"></div>
+        </div>
+        <input id="file" type="file" accept="image/*" hidden>
+      </div>
+
+      <div class="results" id="results" aria-live="polite">
+        <div class="results-empty" id="results-empty">
+          <p class="results-empty-title">No slice yet</p>
+          <p>The prediction and the regions that drove it will appear here.</p>
+        </div>
+
+        <div class="results-content" id="results-content" hidden>
+          <p class="caption">Prediction</p>
+          <h2 class="prediction" id="prediction"><span class="dot"></span><span id="prediction-name"></span></h2>
+          <p class="confidence" id="confidence"></p>
+
+          <ul class="class-list" id="class-list"></ul>
+
+          <p class="caption" id="explain-label">Highlight the evidence for</p>
+          <div class="segmented" id="segmented" role="radiogroup" aria-labelledby="explain-label">
+            <span class="segmented-thumb" aria-hidden="true"></span>
+          </div>
+
+          <p class="footnote" id="footnote"></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="about" aria-label="About the model">
+      <div>
+        <h3>Runs on your device</h3>
+        <p>The 16.8 MB model is downloaded once and runs with ONNX Runtime Web. Nothing you drop here is sent anywhere.</p>
+      </div>
+      <div>
+        <h3>Tested on unseen scans</h3>
+        <p>MobileNetV3-Large fine-tuned on 19,685 slices. On 29 scans kept apart from training it reaches 96.9% accuracy and 99.5% specificity.</p>
+      </div>
+      <div>
+        <h3>Shows its reasoning</h3>
+        <p>Grad-CAM colours the regions that weighed most in the decision, for each of the three classes.</p>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <a class="credit glass" href="https://github.com/aymanbelbachir" target="_blank" rel="noopener">
+        <svg viewBox="0 0 220 200" aria-hidden="true"><path d="M103 2h14v52l24 18-8 9-23-17-23 17-8-9 24-18z"/><path d="M92 76C84 60 62 54 48 68 30 86 20 120 22 152c2 26 22 40 44 36 18-3 28-14 29-30 1-16 1-56-3-82z"/><path d="M128 76c8-16 30-22 44-8 18 18 28 52 26 84-2 26-22 40-44 36-18-3-28-14-29-30-1-16-1-56 3-82z"/></svg>
+        <span>Designed and built by <strong>Ayman Belbachir</strong></span>
+      </a>
+      <p>A learning project, not a medical device. Do not use it to make decisions about anyone's health.</p>
+      <p>Images from <a href="https://www.kaggle.com/datasets/azaemon/preprocessed-ct-scans-for-covid19" target="_blank" rel="noopener">CT Scans for COVID-19 Classification</a> (CC BY 4.0), built from the iCTCF data of Ning et al. (2020).</p>
+    </footer>
+  </main>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
