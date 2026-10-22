@@ -51,7 +51,7 @@ def binary_report(cm, positive):
     fp = cm[:, positive].sum().item() - tp
     tn = cm.sum().item() - tp - fn - fp
     return {
-        "sensitivity": tp / (tp + fn), "sensitivity_ci": wilson_interval(tp, tp + fn),
-        "specificity": tn / (tn + fp), "specificity_ci": wilson_interval(tn, tn + fp),
+        "sensitivity": tp / (tp + fn) if tp + fn else 0.0, "sensitivity_ci": wilson_interval(tp, tp + fn),
+        "specificity": tn / (tn + fp) if tn + fp else 0.0, "specificity_ci": wilson_interval(tn, tn + fp),
         "tp": tp, "fn": fn, "fp": fp, "tn": tn,
     }

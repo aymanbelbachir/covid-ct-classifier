@@ -55,6 +55,12 @@ def group_split(paths):
     return splits
 
 
+def load_groups():
+    """{relative path: group id} from splits/group_split.csv."""
+    with open(config.GROUP_SPLIT_PATH, newline="") as f:
+        return {row["path"]: int(row["group"]) for row in csv.DictReader(f)}
+
+
 def get_split(mode):
     """Return (relative paths, labels, {split name: list of image indices}) for a split mode."""
     paths, labels = list_images()

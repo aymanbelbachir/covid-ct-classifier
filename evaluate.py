@@ -7,6 +7,7 @@ Usage:
 """
 import argparse
 import sys
+from collections import defaultdict
 from pathlib import Path
 
 from covid_ct import config
@@ -14,6 +15,7 @@ from covid_ct.data import get_dataloaders
 from covid_ct.engine import get_predictions
 from covid_ct.metrics import binary_report, confusion_matrix, per_class_report, wilson_interval
 from covid_ct.model import load_model
+from covid_ct.splits import get_split, load_groups
 
 NOTES = {
     "slice": "Note: with the slice split, near-identical slices of the same scan appear in both the training\n"
@@ -21,6 +23,27 @@ NOTES = {
     "group": "Note: with the group split, near-identical slices stay on one side of the split. The dataset has no\n"
              "patient IDs, so distant slices of the same patient could still fall on both sides.",
 }
+
+
+def group_summary(groups, true, preds):
+    """Results per scan group, a proxy for patients: slices of one scan are not independent."""
+    pos = config.CLASSES.index(config.POSITIVE_CLASS)
+    by_group = defaultdict(list)
+    for g, t, p in zip(groups, true, preds):
+        by_group[g].append((t, p))
+
+    errors = sorted((sum(t != p for t, p in v) for v in by_group.values()), reverse=True)
+    positive = [v for v in by_group.values() if any(t == pos for t, _ in v)]
+    negative = [v for v in by_group.values() if not any(t == pos for t, _ in v)]
+    flagged = lambda v: any(p == pos for _, p in v)
+
+    print(f"\nPer scan group ({len(by_group)} groups of near-identical slices, a proxy for patients):")
+    print(f"  {sum(errors)} errors in {sum(e > 0 for e in errors)} groups; "
+          f"the 3 worst groups account for {sum(errors[:3])} of them")
+    print(f"  Scans with {config.POSITIVE_CLASS} slices: {sum(map(flagged, positive))} of {len(positive)} "
+          f"flagged (at least one slice predicted {config.POSITIVE_CLASS})")
+    print(f"  Scans without {config.POSITIVE_CLASS} slices: {sum(map(flagged, negative))} of {len(negative)} "
+          f"with at least one false alarm")
 
 
 def main():
@@ -72,6 +95,11 @@ def main():
     print("      " + "".join(f"{c:>7}" for c in classes))
     for i, c in enumerate(classes):
         print(f"{c:<6}" + "".join(f"{cm[i, j].item():>7}" for j in range(len(classes))))
+
+    if args.split_mode == "group":
+        paths, _, split = get_split("group")
+        groups = load_groups()
+        group_summary([groups[paths[i]] for i in split[args.split]], true.tolist(), preds.tolist())
 
     print("\n" + NOTES[args.split_mode])
 
