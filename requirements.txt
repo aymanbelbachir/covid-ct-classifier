@@ -6,3 +6,5 @@ pillow
 tqdm
 kaggle
 jupyter
+gradio
+huggingface_hub

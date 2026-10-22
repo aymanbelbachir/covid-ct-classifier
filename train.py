@@ -1,7 +1,7 @@
 """Train MobileNetV3-Large on the CT slices and save the best model.
 
 Usage:
-    python train.py                       # group split (honest), 25 epochs
+    python train.py                       # group split (default), 25 epochs
     python train.py --split-mode slice    # original notebook split
     python train.py --epochs 5            # shorter run
 """

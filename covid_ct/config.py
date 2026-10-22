@@ -6,6 +6,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DATA_ROOT = ROOT / "data"            # contains the NiCT/, nCT/ and pCT/ folders
 OUTPUT_DIR = ROOT / "outputs"        # trained models and training histories
 ASSETS_DIR = ROOT / "assets"         # figures used in the README
+GITHUB_URL = "https://github.com/aymanbelbachir/covid-ct-classifier"
 
 # Class names in the order ImageFolder assigns them (alphabetical, uppercase first)
 CLASSES = ["NiCT", "nCT", "pCT"]
