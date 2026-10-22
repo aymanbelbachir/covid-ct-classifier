@@ -2,10 +2,14 @@
 
 A deep learning project that classifies chest CT slices into three classes: normal, COVID-19 positive and non-informative. It fine-tunes a pretrained MobileNetV3-Large in PyTorch and reaches **96.9% accuracy on 29 CT scans held out from training**, with a **99.5% specificity** for COVID-19 and all 8 COVID-positive test scans detected.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/demo-dark.jpg">
-  <img src="assets/demo-light.jpg" alt="The browser demo: a CT slice with its Grad-CAM heatmap, classified as COVID-19 positive with 98% confidence">
-</picture>
+**[Try the live demo](https://huggingface.co/spaces/FidelCashFlow777/covid-ct-classifier)**: the model runs in your browser, nothing to install.
+
+<a href="https://huggingface.co/spaces/FidelCashFlow777/covid-ct-classifier">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/demo-dark.jpg">
+    <img src="assets/demo-light.jpg" alt="The browser demo: a CT slice with its Grad-CAM heatmap, classified as COVID-19 positive with 98% confidence">
+  </picture>
+</a>
 
 - **Transfer learning:** MobileNetV3-Large pretrained on ImageNet, fine-tuned on 19,685 CT slices
 - **Scan-level data split:** near-identical slices of the same scan are kept together, so the test set measures performance on unseen scans
@@ -65,7 +69,7 @@ Validation accuracy reaches about 96% within the first epochs. The model from th
 
 ## Browser demo
 
-The demo is a static web page. The model is downloaded once (16.8 MB, plus 14 MB for the ONNX Runtime engine), then every slice is classified on the visitor's device in under 100 ms. No image is uploaded anywhere.
+The [demo](https://huggingface.co/spaces/FidelCashFlow777/covid-ct-classifier) is a static web page hosted on Hugging Face Spaces. The model is downloaded once (16.8 MB, plus 14 MB for the ONNX Runtime engine), then every slice is classified on the visitor's device in under 100 ms. No image is uploaded anywhere.
 
 <p align="center">
   <img src="assets/demo-loading.gif" width="800" alt="Loading screen: two lungs fill up as the model downloads, then the app appears">
